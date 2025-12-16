@@ -2458,5 +2458,18 @@ You have full access to bash commands on the user''''s computer. If you write a 
                     ('selected_model_configs_compare', '["openrouter::anthropic/claude-opus-4.5"]');
             "#,
         },
+        Migration {
+            version: 132,
+            description: "add agent mode columns to chats",
+            kind: MigrationKind::Up,
+            sql: r#"
+                -- Add agent-related columns to chats table
+                ALTER TABLE chats ADD COLUMN agent_enabled INTEGER DEFAULT 0;
+                ALTER TABLE chats ADD COLUMN agent_type TEXT;
+                ALTER TABLE chats ADD COLUMN agent_folder_path TEXT;
+                ALTER TABLE chats ADD COLUMN agent_session_id TEXT;
+                ALTER TABLE chats ADD COLUMN agent_container_id TEXT;
+            "#,
+        },
     ];
 }

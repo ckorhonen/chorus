@@ -22,6 +22,8 @@ export const chatQueries = {
     }),
 };
 
+export type AgentType = "codex" | "claude";
+
 export type Chat = {
     id: string;
     title: string;
@@ -36,6 +38,13 @@ export type Chat = {
     projectContextSummaryIsStale: boolean;
     replyToId: string | null;
     gcPrototype: boolean;
+
+    // Agent mode fields
+    agentEnabled: boolean;
+    agentType: AgentType | undefined;
+    agentFolderPath: string | undefined;
+    agentSessionId: string | undefined;
+    agentContainerId: string | undefined;
 
     pinned: boolean; // deprecated
 };
@@ -55,6 +64,12 @@ type ChatDBRow = {
     project_context_summary_is_stale: number;
     reply_to_id: string | null;
     gc_prototype_chat: number;
+    // Agent mode fields
+    agent_enabled: number | null;
+    agent_type: string | null;
+    agent_folder_path: string | null;
+    agent_session_id: string | null;
+    agent_container_id: string | null;
 };
 
 function readChat(row: ChatDBRow): Chat {
@@ -74,13 +89,20 @@ function readChat(row: ChatDBRow): Chat {
             row.project_context_summary_is_stale === 1,
         replyToId: row.reply_to_id,
         gcPrototype: row.gc_prototype_chat === 1,
+        // Agent mode fields
+        agentEnabled: row.agent_enabled === 1,
+        agentType: (row.agent_type as AgentType) ?? undefined,
+        agentFolderPath: row.agent_folder_path ?? undefined,
+        agentSessionId: row.agent_session_id ?? undefined,
+        agentContainerId: row.agent_container_id ?? undefined,
     };
 }
 
 export async function fetchChat(chatId: string): Promise<Chat> {
     const rows = await db.select<ChatDBRow[]>(
         `SELECT id, title, quick_chat, pinned, project_id, updated_at, created_at, summary, is_new_chat,
-        parent_chat_id, project_context_summary, project_context_summary_is_stale, reply_to_id, gc_prototype_chat
+        parent_chat_id, project_context_summary, project_context_summary_is_stale, reply_to_id, gc_prototype_chat,
+        agent_enabled, agent_type, agent_folder_path, agent_session_id, agent_container_id
         FROM chats
         WHERE id = $1;`,
         [chatId],
@@ -95,7 +117,8 @@ export async function fetchChats(): Promise<Chat[]> {
     return await db
         .select<ChatDBRow[]>(
             `SELECT id, title, quick_chat, pinned, project_id, updated_at, created_at, summary, is_new_chat, parent_chat_id,
-            project_context_summary, project_context_summary_is_stale, reply_to_id, gc_prototype_chat
+            project_context_summary, project_context_summary_is_stale, reply_to_id, gc_prototype_chat,
+            agent_enabled, agent_type, agent_folder_path, agent_session_id, agent_container_id
             FROM chats
             WHERE reply_to_id IS NULL
             ORDER BY updated_at DESC`,
@@ -385,6 +408,108 @@ export function useRenameChat() {
         },
         onSuccess: async (_data, variables) => {
             await queryClient.invalidateQueries(chatQueries.list());
+            await queryClient.invalidateQueries(
+                chatQueries.detail(variables.chatId),
+            );
+        },
+    });
+}
+
+// Agent mode mutations
+
+export function useSetAgentEnabled() {
+    const queryClient = useQueryClient();
+    const cacheUpdateChat = useCacheUpdateChat();
+
+    return useMutation({
+        mutationKey: ["setAgentEnabled"] as const,
+        mutationFn: async ({
+            chatId,
+            enabled,
+            agentType,
+            folderPath,
+        }: {
+            chatId: string;
+            enabled: boolean;
+            agentType?: AgentType;
+            folderPath?: string;
+        }) => {
+            await db.execute(
+                `UPDATE chats
+                 SET agent_enabled = $1, agent_type = $2, agent_folder_path = $3
+                 WHERE id = $4`,
+                [enabled ? 1 : 0, agentType ?? null, folderPath ?? null, chatId],
+            );
+        },
+        onSuccess: async (_data, variables) => {
+            cacheUpdateChat(variables.chatId, (chat) => {
+                chat.agentEnabled = variables.enabled;
+                chat.agentType = variables.agentType;
+                chat.agentFolderPath = variables.folderPath;
+            });
+            await queryClient.invalidateQueries(
+                chatQueries.detail(variables.chatId),
+            );
+        },
+    });
+}
+
+export function useUpdateAgentSession() {
+    const queryClient = useQueryClient();
+    const cacheUpdateChat = useCacheUpdateChat();
+
+    return useMutation({
+        mutationKey: ["updateAgentSession"] as const,
+        mutationFn: async ({
+            chatId,
+            sessionId,
+            containerId,
+        }: {
+            chatId: string;
+            sessionId?: string;
+            containerId?: string;
+        }) => {
+            await db.execute(
+                `UPDATE chats
+                 SET agent_session_id = $1, agent_container_id = $2
+                 WHERE id = $3`,
+                [sessionId ?? null, containerId ?? null, chatId],
+            );
+        },
+        onSuccess: async (_data, variables) => {
+            cacheUpdateChat(variables.chatId, (chat) => {
+                chat.agentSessionId = variables.sessionId;
+                chat.agentContainerId = variables.containerId;
+            });
+            await queryClient.invalidateQueries(
+                chatQueries.detail(variables.chatId),
+            );
+        },
+    });
+}
+
+export function useSetAgentType() {
+    const queryClient = useQueryClient();
+    const cacheUpdateChat = useCacheUpdateChat();
+
+    return useMutation({
+        mutationKey: ["setAgentType"] as const,
+        mutationFn: async ({
+            chatId,
+            agentType,
+        }: {
+            chatId: string;
+            agentType: AgentType;
+        }) => {
+            await db.execute(
+                `UPDATE chats SET agent_type = $1 WHERE id = $2`,
+                [agentType, chatId],
+            );
+        },
+        onSuccess: async (_data, variables) => {
+            cacheUpdateChat(variables.chatId, (chat) => {
+                chat.agentType = variables.agentType;
+            });
             await queryClient.invalidateQueries(
                 chatQueries.detail(variables.chatId),
             );

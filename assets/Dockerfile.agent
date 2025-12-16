@@ -1,0 +1,35 @@
+# Chorus Agent Dev Container
+# This container provides an isolated environment for running AI coding agents
+# Built for use with Apple Containerization (macOS 26+)
+
+FROM node:20-alpine
+
+# Install system dependencies and common dev tools
+RUN apk add --no-cache \
+    git \
+    python3 \
+    py3-pip \
+    go \
+    rust \
+    cargo \
+    bash \
+    curl \
+    wget \
+    openssh-client \
+    build-base \
+    && rm -rf /var/cache/apk/*
+
+# Install agent CLIs globally
+RUN npm install -g \
+    @anthropic-ai/claude-code \
+    @openai/codex \
+    && npm cache clean --force
+
+# Set up working directory
+WORKDIR /app
+
+# Default shell
+SHELL ["/bin/bash", "-c"]
+
+# Keep container running for exec commands
+CMD ["tail", "-f", "/dev/null"]

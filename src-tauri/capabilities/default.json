@@ -76,6 +76,21 @@
                     "args": true
                 },
                 {
+                    "name": "container",
+                    "cmd": "container",
+                    "args": true
+                },
+                {
+                    "name": "which",
+                    "cmd": "which",
+                    "args": true
+                },
+                {
+                    "name": "mkdir",
+                    "cmd": "mkdir",
+                    "args": true
+                },
+                {
                     "name": "binaries/mcp-desktopcommander",
                     "sidecar": true,
                     "args": true
@@ -103,6 +118,11 @@
                 {
                     "name": "exec-sh",
                     "cmd": "sh",
+                    "args": true
+                },
+                {
+                    "name": "container",
+                    "cmd": "container",
                     "args": true
                 },
                 {
