@@ -122,6 +122,9 @@ import {
     isPermissionGranted,
     requestPermission,
 } from "@tauri-apps/plugin-notification";
+import { AgentChatHeader, AgentModeToggle } from "./AgentChatHeader";
+import { ContainerSetup, useContainerSetupNeeded } from "./ContainerSetup";
+import { BotIcon } from "lucide-react";
 
 // ----------------------------------
 // Sub-components
@@ -1752,6 +1755,9 @@ export default function MultiChat() {
     // Scroll-to-bottom handling
     const [showScrollButton, setShowScrollButton] = useState(false);
 
+    // Agent mode state
+    const [showContainerSetup, setShowContainerSetup] = useState(false);
+
     const handleScrollToBottom = useCallback(
         (smooth = true) => {
             const container = chatContainerRef.current;
@@ -2329,6 +2335,10 @@ export default function MultiChat() {
 
                     {/* chat actions - show as individual icon buttons if there are multiple message sets AND we're not in quick chat */}
                     <div className="flex items-center gap-1">
+                        {/* Agent mode toggle */}
+                        {!isQuickChatWindow && chatQuery.data && !chatQuery.data.agentEnabled && (
+                            <AgentModeToggle chat={chatQuery.data} />
+                        )}
                         {!isQuickChatWindow &&
                             messageSetsQuery.data &&
                             messageSetsQuery.data.length > 1 && (
@@ -2452,7 +2462,14 @@ export default function MultiChat() {
                         <ResizablePanel
                             defaultSize={repliesDrawerOpen ? 70 : 100}
                         >
-                            <div className="relative flex-1 min-h-0 overflow-hidden h-full">
+                            <div className="relative flex-1 min-h-0 overflow-hidden h-full flex flex-col">
+                                {/* Agent mode header */}
+                                {chatQuery.data?.agentEnabled && (
+                                    <AgentChatHeader
+                                        chat={chatQuery.data}
+                                        onSetupRequired={() => setShowContainerSetup(true)}
+                                    />
+                                )}
                                 <MainScrollableContentView
                                     chatContainerRef={chatContainerRef}
                                     lastMessageSetRef={lastMessageSetRef}
@@ -2579,6 +2596,12 @@ export default function MultiChat() {
 
             {/* Find in page UI */}
             <FindInPage dependencies={[messageSetsQuery.data]} />
+
+            {/* Container setup dialog for agent mode */}
+            <ContainerSetup
+                open={showContainerSetup}
+                onOpenChange={setShowContainerSetup}
+            />
         </div>
     );
 }
